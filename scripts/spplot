@@ -104,6 +104,14 @@ def get_data_files(dir):
         files += [file]
     return sorted(files)
 
+def get_trace_files(dir):
+    files = []
+    for file in glob(dir+'/'+'*.npy'):
+        if 'vx_' in file or \
+           'vy_' in file or \
+           'vz_' in file:
+            files += [file]
+    return sorted(files)
 
 def get_title(file):
     pattern = '.*proc(.*).bin'
@@ -169,3 +177,20 @@ if __name__ == '__main__':
         pylab.set_cmap('seismic')
 
         pylab.savefig(database_file.replace('.bin', '.png'), dpi=300)
+
+    if exists(join(sys.argv[1], 'trace_data.npy')):
+        from obspy import Stream, Trace
+
+        data = np.fromfile(join(sys.argv[1], 'trace_data.npy'), dtype='float32')
+        nt = int(data[0])
+        nrec = int(data[1])
+        dt = data[2]
+        files = get_trace_files(sys.argv[1])
+
+        for trace_file in files:
+            traces = []
+            trace = np.fromfile(trace_file, dtype='float32').reshape([nrec, nt])
+            for i in range(nrec):
+                traces.append(Trace(data=trace[i,:], header={'delta': dt, 'network': 'SYN', 'station': 'STA%03d' % (i,)}))
+            stream = Stream(traces=traces)
+            stream.plot(outfile=trace_file.replace('.npy', '.png'), dpi=300)

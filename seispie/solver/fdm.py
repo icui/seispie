@@ -522,6 +522,39 @@ class fdm(base):
 					stream.synchronize()
 					self.export_field(out, 'vz', it)
 
+		if 'output_traces' in self.path:
+			tracedir = self.path['output_traces']
+			nrec = self.nrec
+			i = isrc if isrc >= 0 else 0
+
+			syn_x = self.syn_x = []
+			syn_y = self.syn_y = []
+			syn_z = self.syn_z = []
+
+			if sh:
+				out = np.zeros(nt * nrec, dtype='float32')
+				self.obs_y.copy_to_host(out, stream=stream)
+				syn_y.append(out)
+				out.tofile('%s/vy_%06d.npy' % (tracedir, i))
+
+			if psv:
+				out = np.zeros(nt * nrec, dtype='float32')
+				self.obs_x.copy_to_host(out, stream=stream)
+				syn_x.append(out)
+				out.tofile('%s/vx_%06d.npy' % (tracedir, i))
+
+				out = np.zeros(nt * nrec, dtype='float32')
+				self.obs_z.copy_to_host(out, stream=stream)
+				syn_z.append(out)
+				out.tofile('%s/vz_%06d.npy' % (tracedir, i))
+
+			shape = np.zeros(3, dtype='float32')
+			shape[0] = nt
+			shape[1] = nrec
+			shape[2] = self.dt
+			shape.tofile('%s/trace_data.npy' % (tracedir,))
+			stream.synchronize()
+
 	def run_adjoint(self):
 		stream = self.stream
 		dim = self.dim
