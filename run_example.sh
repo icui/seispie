@@ -1,5 +1,7 @@
 #!/bin/sh
 
+export NUMBA_CUDA_LOW_OCCUPANCY_WARNINGS=0
+
 sproot=$PWD
 
 cd examples
@@ -48,3 +50,5 @@ if [[ $2 == "--submit" ]]; then
 else
   python $sproot"/scripts/sprun" --workdir=$PWD
 fi
+
+python $sproot"/scripts/spplot" $PWD/output

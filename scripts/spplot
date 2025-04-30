@@ -152,7 +152,9 @@ if __name__ == '__main__':
         V, X, Z = mesh2grid(v, x, z)
 
         # display figure
-        pylab.pcolor(X, Z, V)
+        pylab.figure(figsize=(8, 6))
+        amax = abs(V).max()
+        pylab.pcolor(X, Z, V, vmin=amax*-1, vmax=amax)
         locs = np.arange(X.min(), X.max() + 1, (X.max() - X.min()) / 5)
         pylab.xticks(locs)
         pylab.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
@@ -166,4 +168,4 @@ if __name__ == '__main__':
         pylab.gca().invert_yaxis()
         pylab.set_cmap('seismic')
 
-        pylab.show()
+        pylab.savefig(database_file.replace('.bin', '.png'), dpi=300)
