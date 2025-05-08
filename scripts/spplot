@@ -98,8 +98,8 @@ def get_data_files(dir):
     for file in glob(dir+'/'+'proc*.bin*'):
         if 'jacobian' in file or \
            'ibool' in file or \
-           'x.bin' in file or \
-           'z.bin' in file:
+           '_x.bin' in file or \
+           '_z.bin' in file:
             continue
         files += [file]
     return sorted(files)
@@ -193,4 +193,4 @@ if __name__ == '__main__':
             for i in range(nrec):
                 traces.append(Trace(data=trace[i,:], header={'delta': dt, 'network': 'SYN', 'station': 'STA%03d' % (i,)}))
             stream = Stream(traces=traces)
-            stream.plot(outfile=trace_file.replace('.npy', '.png'), dpi=300)
+            stream.plot(size=(800, 1000), outfile=trace_file.replace('.npy', '.png'))
