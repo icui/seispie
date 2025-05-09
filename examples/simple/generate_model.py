@@ -1,6 +1,6 @@
 import numpy as np
 
-grid = 5
+grid = 8
 nx = grid * 100 + 1
 nz = grid * 100 + 1
 dx = 40.0 / grid

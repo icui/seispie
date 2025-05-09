@@ -41,8 +41,8 @@ echo "Running example/"$dir
 
 cd $dir
 
-rm -rf output*
-rm -rf scratch
+rm -rf output/*
+rm -rf scratch/*
 
 export PYTHONPATH=$sproot
 if [[ $2 == "--submit" ]]; then
@@ -51,4 +51,4 @@ else
   python $sproot"/scripts/sprun" --workdir=$PWD
 fi
 
-python $sproot"/scripts/spplot" $PWD/output
+python $sproot"/scripts/spplot" $PWD/output $PWD/output_ref

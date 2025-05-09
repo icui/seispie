@@ -489,7 +489,7 @@ class fdm(base):
 				add_vy[dim](self.vy, self.uy, self.dsy, self.rho, self.bound, dt, npt)
 				div_vy[dim](self.dvydx, self.dvydz, self.vy, dx, dz, nx, nz)
 				add_sy[dim](self.sxy, self.szy, self.dvydx, self.dvydz, self.mu, dt, npt)
-				save_obs[self.nrec, 1](self.obs_y, self.uy, self.rec_id, it, nt, nx, nz)
+				save_obs[self.nrec, 1](self.obs_y, self.vy, self.rec_id, it, nt, nx, nz)
 
 			if psv:
 				div_sxz[dim](self.dsx, self.dsz, self.sxx, self.szz, self.sxz, dx, dz, nx, nz)
@@ -497,8 +497,8 @@ class fdm(base):
 				add_vxz[dim](self.vx, self.vz, self.ux, self.uz, self.dsx, self.dsz, self.rho, self.bound, dt)
 				div_vxz[dim](self.dvxdx, self.dvxdz, self.dvzdx, self.dvzdz, self.vx, self.vz, dx, dz, nx, nz)
 				add_sxz[dim](self.sxx, self.szz, self.sxz, self.dvxdx, self.dvxdz, self.dvzdx, self.dvzdz, self.lam, self.mu, dt)
-				save_obs[self.nrec, 1](self.obs_x, self.ux, self.rec_id, it, nt, nx, nz)
-				save_obs[self.nrec, 1](self.obs_z, self.uz, self.rec_id, it, nt, nx, nz)
+				save_obs[self.nrec, 1](self.obs_x, self.vx, self.rec_id, it, nt, nx, nz)
+				save_obs[self.nrec, 1](self.obs_z, self.vz, self.rec_id, it, nt, nx, nz)
 
 			if isa >= 0:
 				if sh:
@@ -527,32 +527,20 @@ class fdm(base):
 			nrec = self.nrec
 			i = isrc if isrc >= 0 else 0
 
-			syn_x = self.syn_x = []
-			syn_y = self.syn_y = []
-			syn_z = self.syn_z = []
-
 			if sh:
 				out = np.zeros(nt * nrec, dtype='float32')
 				self.obs_y.copy_to_host(out, stream=stream)
-				syn_y.append(out)
-				out.tofile('%s/vy_%06d.npy' % (tracedir, i))
+				np.save('%s/vy_%06d.npy' % (tracedir, i), out.reshape([nrec, nt]))
 
 			if psv:
 				out = np.zeros(nt * nrec, dtype='float32')
 				self.obs_x.copy_to_host(out, stream=stream)
-				syn_x.append(out)
-				out.tofile('%s/vx_%06d.npy' % (tracedir, i))
+				np.save('%s/vx_%06d.npy' % (tracedir, i), out.reshape([nrec, nt]))
 
 				out = np.zeros(nt * nrec, dtype='float32')
 				self.obs_z.copy_to_host(out, stream=stream)
-				syn_z.append(out)
-				out.tofile('%s/vz_%06d.npy' % (tracedir, i))
+				np.save('%s/vz_%06d.npy' % (tracedir, i), out.reshape([nrec, nt]))
 
-			shape = np.zeros(3, dtype='float32')
-			shape[0] = nt
-			shape[1] = nrec
-			shape[2] = self.dt
-			shape.tofile('%s/trace_data.npy' % (tracedir,))
 			stream.synchronize()
 
 	def run_adjoint(self):
@@ -595,8 +583,8 @@ class fdm(base):
 				add_vxz[dim](self.vx, self.vz, self.ux, self.uz, self.dsx, self.dsz, rho, bound, dt)
 				div_vxz[dim](self.dvxdx, self.dvxdz, self.dvzdx, self.dvzdz, self.vx, self.vz, dx, dz, nx, nz)
 				add_sxz[dim](self.sxx, self.szz, self.sxz, self.dvxdx, self.dvxdz, self.dvzdx, self.dvzdz, self.lam, self.mu, dt)
-				save_obs[self.nrec, 1](self.obs_x, self.ux, self.rec_id, it, nt, nx, nz)
-				save_obs[self.nrec, 1](self.obs_z, self.uz, self.rec_id, it, nt, nx, nz)
+				# save_obs[self.nrec, 1](self.obs_x, self.vx, self.rec_id, it, nt, nx, nz)
+				# save_obs[self.nrec, 1](self.obs_z, self.vz, self.rec_id, it, nt, nx, nz)
 
 	def smooth(self, data):
 		dim = self.dim

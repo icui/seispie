@@ -4,6 +4,6 @@ doc/_build
 parameters*c
 paths*c
 
-output*
+**/output/*
 scratch
 .mypy_cache
