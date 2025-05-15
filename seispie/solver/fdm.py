@@ -489,7 +489,7 @@ class fdm(base):
 				add_vy[dim](self.vy, self.uy, self.dsy, self.rho, self.bound, dt, npt)
 				div_vy[dim](self.dvydx, self.dvydz, self.vy, dx, dz, nx, nz)
 				add_sy[dim](self.sxy, self.szy, self.dvydx, self.dvydz, self.mu, dt, npt)
-				save_obs[self.nrec, 1](self.obs_y, self.vy, self.rec_id, it, nt, nx, nz)
+				save_obs[self.nrec, 1](self.obs_y, self.uy, self.rec_id, it, nt, nx, nz)
 
 			if psv:
 				div_sxz[dim](self.dsx, self.dsz, self.sxx, self.szz, self.sxz, dx, dz, nx, nz)
@@ -497,8 +497,8 @@ class fdm(base):
 				add_vxz[dim](self.vx, self.vz, self.ux, self.uz, self.dsx, self.dsz, self.rho, self.bound, dt)
 				div_vxz[dim](self.dvxdx, self.dvxdz, self.dvzdx, self.dvzdz, self.vx, self.vz, dx, dz, nx, nz)
 				add_sxz[dim](self.sxx, self.szz, self.sxz, self.dvxdx, self.dvxdz, self.dvzdx, self.dvzdz, self.lam, self.mu, dt)
-				save_obs[self.nrec, 1](self.obs_x, self.vx, self.rec_id, it, nt, nx, nz)
-				save_obs[self.nrec, 1](self.obs_z, self.vz, self.rec_id, it, nt, nx, nz)
+				save_obs[self.nrec, 1](self.obs_x, self.ux, self.rec_id, it, nt, nx, nz)
+				save_obs[self.nrec, 1](self.obs_z, self.uz, self.rec_id, it, nt, nx, nz)
 
 			if isa >= 0:
 				if sh:

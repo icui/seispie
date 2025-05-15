@@ -146,8 +146,8 @@ if __name__ == '__main__':
     for database_file in files:
         # component name
         comp = get_title(database_file)
-        if len(sys.argv) >= 3 and sys.argv[2] not in database_file:
-            continue
+        # if len(sys.argv) >= 3 and sys.argv[2] not in database_file:
+        #     continue
 
         # read database file
         v = read_fortran(database_file)
@@ -183,23 +183,30 @@ if __name__ == '__main__':
 
     files = get_trace_files(sys.argv[1])
     files2 = get_trace_files(sys.argv[2]) if len(sys.argv) > 2 else []
-    print(sys.argv[2])
+
+    # for trace_file in files:
+    #     plt.figure(figsize=(8, 6))
+    #     trace = np.load(trace_file)
+    #     trace2 = None
+
+    #     for trace_file2 in files2:
+    #         if trace_file2.split('/')[-1] == trace_file.split('/')[-1]:
+    #             trace2 = np.load(trace_file2)
+    #             break
+
+    #     for i in range(trace.shape[0]):
+    #         plt.subplot(trace.shape[0], 1, i+1)
+    #         plt.plot(trace[i,:])
+    #         if trace2 is not None:
+    #             plt.plot(trace2[i,:])
+    #         plt.gca().get_xaxis().set_visible(i==trace.shape[0]-1)
+        
+    #     plt.savefig(trace_file.replace('.npy', '.png'))
 
     for trace_file in files:
-        plt.figure(figsize=(8, 6))
+        traces = []
         trace = np.load(trace_file)
-        trace2 = None
-
-        for trace_file2 in files2:
-            if trace_file2.split('/')[-1] == trace_file.split('/')[-1]:
-                trace2 = np.load(trace_file2)
-                break
-
         for i in range(trace.shape[0]):
-            plt.subplot(trace.shape[0], 1, i+1)
-            plt.plot(trace[i,:])
-            if trace2 is not None:
-                plt.plot(trace2[i,:])
-            plt.gca().get_xaxis().set_visible(i==trace.shape[0]-1)
-        
-        plt.savefig(trace_file.replace('.npy', '.png'))
+            traces.append(Trace(data=trace[i,:], header={'network': 'SYN', 'station': 'STA%03d' % (i,)}))
+        stream = Stream(traces=traces)
+        stream.plot(size=(800, 1000), outfile=trace_file.replace('.npy', '.png'))
