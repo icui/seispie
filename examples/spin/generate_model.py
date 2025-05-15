@@ -1,10 +1,11 @@
 import numpy as np
 
-grid = 16
-nx = grid * 100 + 1
-nz = grid * 100 + 1
-dx = 40.0 / grid
-dz = 40.0 / grid
+dx = 5.0
+dz = 5.0
+
+nx = int(4000 / dx) + 1
+nz = int(4000 / dz) + 1
+
 n = nx * nz
 
 model = {
