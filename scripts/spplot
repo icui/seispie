@@ -107,9 +107,12 @@ def get_data_files(dir):
 def get_trace_files(dir):
     files = []
     for file in glob(dir+'/'+'*.npy'):
-        if 'vx_' in file or \
-           'vy_' in file or \
-           'vz_' in file:
+        if 'ux_' in file or \
+           'uy_' in file or \
+           'uz_' in file or \
+           'rx_' in file or \
+           'ry_' in file or \
+           'rz_' in file:
             files += [file]
     return sorted(files)
 

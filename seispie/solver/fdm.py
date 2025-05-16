@@ -77,10 +77,10 @@ def set_bound(bound, width, alpha, left, right, bottom, top, nx, nz):
 			aw = alpha * (width - j - 1)
 			bound[k] *= math.exp(-aw * aw)
 
-@cuda.jit('void(float32[:], float32[:], float32[:], float32, float32, int32, int32)')
+@cuda.jit
 def div_sy(dsy, sxy, szy, dx, dz, nx, nz):
 	k, i, j = idxij(nz)
-	if k < nx * nz:
+	if k < dsy.size:
 		if i >= 2 and i < nx - 2:
 			dsy[k] = 9 * (sxy[k] - sxy[k-nz]) / (8 * dx) - (sxy[k+nz] - sxy[k-2*nz]) / (24 * dx)
 		else:
@@ -104,7 +104,19 @@ def div_sxz(dsx, dsz, sxx, szz, sxz, dx, dz, nx, nz):
 			dsx[k] += 9 * (sxz[k] - sxz[k-1]) / (8 * dz) - (sxz[k+1] - sxz[k-2]) / (24 * dz)
 			dsz[k] += 9 * (szz[k] - szz[k-1]) / (8 * dz) - (szz[k+1] - szz[k-2]) / (24 * dz)
 
-@cuda.jit('void(float32[:], float32[:], int32[:], int32, int32, int32)')
+@cuda.jit
+def div_sy_c(dsx, dsz, dsy_c, syy_c, jk, dx, dz, nx, nz):
+	k, i, j = idxij(nz)
+	if k < dsx.size:
+		if i >= 2 and i < nx - 2:
+			dsz[k] -= 9 * (syy_c[k] - syy_c[k-nz]) / (8 * dx) - (syy_c[k+nz] - syy_c[k-2*nz]) / (24 * dx)
+
+		if j >= 2 and j < nz - 2:
+			dsx[k] += 9 * (syy_c[k] - syy_c[k-1]) / (8 * dz) - (syy_c[k+1] - syy_c[k-2]) / (24 * dz)
+
+		dsy_c[k] -= 2 * syy_c[k] / jk[k]
+
+@cuda.jit
 def stf_dsy(dsy, stf_y, src_id, isrc, it, nt):
 	ib = cuda.blockIdx.x
 	if isrc < 0 or isrc == ib:
@@ -121,7 +133,7 @@ def stf_dsxz(dsx, dsz, stf_x, stf_z, src_id, isrc, it, nt):
 		dsx[km] += stf_x[ks]
 		dsz[km] += stf_z[ks]
 
-@cuda.jit('void(float32[:], float32[:], float32[:], float32[:], float32[:], float32, int32)')
+@cuda.jit
 def add_vy(vy, uy, dsy, rho, bound, dt, npt):
 	k = idx()
 	if k < npt:
@@ -137,7 +149,7 @@ def add_vxz(vx, vz, ux, uz, dsx, dsz, rho, bound, dt):
 		ux[k] += vx[k] * dt
 		uz[k] += vz[k] * dt
 
-@cuda.jit('void(float32[:], float32[:], float32[:], float32, float32, int32, int32)')
+@cuda.jit
 def div_vy(dvydx, dvydz, vy, dx, dz, nx, nz):
 	k, i, j = idxij(nz)
 	if k < nx * nz:
@@ -167,12 +179,20 @@ def div_vxz(dvxdx, dvxdz, dvzdx, dvzdz, vx, vz, dx, dz, nx, nz):
 			dvxdz[k] = 0
 			dvzdz[k] = 0
 
-@cuda.jit('void(float32[:], float32[:], float32[:], float32[:], float32[:], float32, int32)')
+@cuda.jit
 def add_sy(sxy, szy, dvydx, dvydz, mu, dt, npt):
 	k = idx()
 	if k < npt:
 		sxy[k] += dt * mu[k] * dvydx[k]
 		szy[k] += dt * mu[k] * dvydz[k]
+
+@cuda.jit
+def add_sy_c(syx_c, syy_c, syz_c, vy_c, dvydx_c, dvydz_c, dvxdz, dvzdx, dvzdz, nu, jk, mu_c, nu_c, dt):
+	k = idx()
+	if k < syx_c.size:
+		syy_c[k] += 2 * dt * nu[k] * (vy_c[k] - 0.5 * (dvzdx[k] - dvxdz[k]))
+		syx_c[k] += dt / jk[k] * (mu_c[k] + nu_c[k]) * dvydx_c[k]
+		syz_c[k] += dt / jk[k] * (mu_c[k] + nu_c[k]) * dvydz_c[k]
 
 @cuda.jit
 def add_sxz(sxx, szz, sxz, dvxdx, dvxdz, dvzdx, dvzdz, lam, mu, dt):
@@ -189,7 +209,7 @@ def save_obs(obs, u, rec_id, it, nt, nx, nz):
 	km = rec_id[ib]
 	obs[kr] = u[km]
 
-@cuda.jit('void(float32[:], float32[:], float32[:], float32[:], float32[:], float32, int32, int32)')
+@cuda.jit
 def interaction_muy(k_mu, dvydx, dvydx_fw, dvydz, dvydz_fw, ndt, nx, nz):
 	k = idx()
 	if k < nx * nz:
@@ -241,6 +261,7 @@ class fdm(base):
 		self.dt = float(self.config['dt'])
 		self.sh = 1 if self.config['sh'] == 'yes' else 0
 		self.psv = 1 if self.config['psv'] == 'yes' else 0
+		self.spin = 1 if self.config['spin'] == 'yes' else 0
 		self.sae = 0
 		self.nsa = 0
 
@@ -294,8 +315,9 @@ class fdm(base):
 		"""
 		model = dict()
 		model_dir = self.path['model_true'] if model_true else self.path['model_init']
+		model_params = ['x', 'z', 'lambda', 'mu', 'nu', 'j', 'lambda_c', 'mu_c', 'nu_c', 'rho'] if self.spin else ['x', 'z', 'vp', 'vs', 'rho']
 
-		for name in ['x', 'z', 'vp', 'vs', 'rho']:
+		for name in model_params:
 			filename = path.join(model_dir, 'proc000000_' + name + '.bin')
 			with open(filename) as f:
 				if not hasattr(self, 'npt'):
@@ -323,8 +345,20 @@ class fdm(base):
 		stream = self.stream
 		zeros = np.zeros(npt, dtype='float32')
 
-		self.lam = cuda.to_device(model['vp'], stream=stream)
-		self.mu = cuda.to_device(model['vs'], stream=stream)
+		# change parameterization
+		if self.spin:
+			self.lam = cuda.to_device(model['lambda'], stream=stream)
+			self.mu = cuda.to_device(model['mu'], stream=stream)
+			self.nu = cuda.to_device(model['nu'], stream=stream)
+			self.j = cuda.to_device(model['j'], stream=stream)
+			self.lam_c = cuda.to_device(model['lambda_c'], stream=stream)
+			self.mu_c = cuda.to_device(model['mu_c'], stream=stream)
+			self.nu_c = cuda.to_device(model['nu_c'], stream=stream)
+		else:
+			self.lam = cuda.to_device(model['vp'], stream=stream)
+			self.mu = cuda.to_device(model['vs'], stream=stream)
+			vps2lm[self.dim](self.lam, self.mu, self.rho)
+
 		self.rho = cuda.to_device(model['rho'], stream=stream)
 		self.bound = cuda.to_device(zeros, stream=stream) # absorbing boundary
 
@@ -349,13 +383,13 @@ class fdm(base):
 				'dsx', 'dsz','dvxdx', 'dvxdz', 'dvzdx', 'dvzdz'
 			]
 
+			if self.spin:
+				dats += ['vy_c', 'uy_c', 'syx_c', 'syy_c', 'syz_c', 'dsy_c', 'dvydx_c', 'dvydz_c']
+
 		for dat in dats:
 			setattr(self, dat, cuda.to_device(zeros, stream=stream))
 
 		# FIXME interpolate model
-
-		# change parameterization
-		vps2lm[self.dim](self.lam, self.mu, self.rho)
 
 		# write coordinate file
 		if self.config['save_coordinates']:
@@ -449,6 +483,7 @@ class fdm(base):
 		dim = self.dim
 		sh = self.sh
 		psv = self.psv
+		spin = self.spin
 
 		nx = self.nx
 		nz = self.nz
@@ -493,12 +528,26 @@ class fdm(base):
 
 			if psv:
 				div_sxz[dim](self.dsx, self.dsz, self.sxx, self.szz, self.sxz, dx, dz, nx, nz)
+
+				if spin:
+					div_sy[dim](self.dsy_c, self.syx_c, self.syz_c, dx, dz, nx, nz)
+					div_sy_c[dim](self.dsx, self.dsz, self.dsy_c, self.syy_c, self.j, dx, dz, nx, nz)
+
 				stf_dsxz[self.nsrc, 1](self.dsx, self.dsz, self.stf_x, self.stf_z, self.src_id, isrc, it, nt)
 				add_vxz[dim](self.vx, self.vz, self.ux, self.uz, self.dsx, self.dsz, self.rho, self.bound, dt)
 				div_vxz[dim](self.dvxdx, self.dvxdz, self.dvzdx, self.dvzdz, self.vx, self.vz, dx, dz, nx, nz)
 				add_sxz[dim](self.sxx, self.szz, self.sxz, self.dvxdx, self.dvxdz, self.dvzdx, self.dvzdz, self.lam, self.mu, dt)
+
+				if spin:
+					add_vy[dim](self.vy_c, self.uy_c, self.dsy_c, self.rho, self.bound, dt, npt)
+					div_vy[dim](self.dvydx_c, self.dvydz_c, self.vy_c, dx, dz, nx, nz)
+					add_sy_c[dim](self.syx_c, self.syy_c, self.syz_c, self.vy_c, self.dvydx_c, self.dvydz_c, self.dvxdz, self.dvzdx, self.dvzdz, self.nu, self.j, self.mu_c, self.nu_c, dt)
+
 				save_obs[self.nrec, 1](self.obs_x, self.ux, self.rec_id, it, nt, nx, nz)
 				save_obs[self.nrec, 1](self.obs_z, self.uz, self.rec_id, it, nt, nx, nz)
+
+				if spin:
+					save_obs[self.nrec, 1](self.obs_y, self.vy_c, self.rec_id, it, nt, nx, nz)
 
 			if isa >= 0:
 				if sh:
@@ -522,6 +571,11 @@ class fdm(base):
 					stream.synchronize()
 					self.export_field(out, 'vz', it)
 
+					if spin:
+						self.vy_c.copy_to_host(out, stream=stream)
+						stream.synchronize()
+						self.export_field(out, 'ry', it)
+
 		if 'output_traces' in self.path:
 			tracedir = self.path['output_traces']
 			nrec = self.nrec
@@ -530,16 +584,21 @@ class fdm(base):
 			if sh:
 				out = np.zeros(nt * nrec, dtype='float32')
 				self.obs_y.copy_to_host(out, stream=stream)
-				np.save('%s/vy_%06d.npy' % (tracedir, i), out.reshape([nrec, nt]))
+				np.save('%s/uy_%06d.npy' % (tracedir, i), out.reshape([nrec, nt]))
 
 			if psv:
 				out = np.zeros(nt * nrec, dtype='float32')
 				self.obs_x.copy_to_host(out, stream=stream)
-				np.save('%s/vx_%06d.npy' % (tracedir, i), out.reshape([nrec, nt]))
+				np.save('%s/ux_%06d.npy' % (tracedir, i), out.reshape([nrec, nt]))
 
 				out = np.zeros(nt * nrec, dtype='float32')
 				self.obs_z.copy_to_host(out, stream=stream)
-				np.save('%s/vz_%06d.npy' % (tracedir, i), out.reshape([nrec, nt]))
+				np.save('%s/uz_%06d.npy' % (tracedir, i), out.reshape([nrec, nt]))
+
+				if spin:
+					out = np.zeros(nt * nrec, dtype='float32')
+					self.obs_y.copy_to_host(out, stream=stream)
+					np.save('%s/ry_%06d.npy' % (tracedir, i), out.reshape([nrec, nt]))
 
 			stream.synchronize()
 
@@ -583,8 +642,6 @@ class fdm(base):
 				add_vxz[dim](self.vx, self.vz, self.ux, self.uz, self.dsx, self.dsz, rho, bound, dt)
 				div_vxz[dim](self.dvxdx, self.dvxdz, self.dvzdx, self.dvzdz, self.vx, self.vz, dx, dz, nx, nz)
 				add_sxz[dim](self.sxx, self.szz, self.sxz, self.dvxdx, self.dvxdz, self.dvzdx, self.dvzdz, self.lam, self.mu, dt)
-				# save_obs[self.nrec, 1](self.obs_x, self.vx, self.rec_id, it, nt, nx, nz)
-				# save_obs[self.nrec, 1](self.obs_z, self.vz, self.rec_id, it, nt, nx, nz)
 
 	def smooth(self, data):
 		dim = self.dim
