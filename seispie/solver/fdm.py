@@ -517,7 +517,6 @@ class fdm(base):
 					self.ux.copy_to_host(self.ux_fwd[isa], stream=stream)
 					self.uz.copy_to_host(self.uz_fwd[isa], stream=stream)
 
-
 			if sh:
 				div_sy[dim](self.dsy, self.sxy, self.szy, dx, dz, nx, nz)
 				stf_dsy[self.nsrc, 1](self.dsy, self.stf_y, self.src_id, isrc, it, nt)
