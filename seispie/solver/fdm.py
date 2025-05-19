@@ -546,7 +546,7 @@ class fdm(base):
 				save_obs[self.nrec, 1](self.obs_z, self.uz, self.rec_id, it, nt, nx, nz)
 
 				if spin:
-					save_obs[self.nrec, 1](self.obs_y, self.vy_c, self.rec_id, it, nt, nx, nz)
+					save_obs[self.nrec, 1](self.obs_y, self.uy_c, self.rec_id, it, nt, nx, nz)
 
 			if isa >= 0:
 				if sh:
