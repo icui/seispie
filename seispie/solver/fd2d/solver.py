@@ -54,7 +54,7 @@ def run_forward(self):
 
             if spin:
                 div_sy[dim](self.dsy_c, self.syx_c, self.syz_c, dx, dz, nx, nz)
-                div_sy_c[dim](self.dsx, self.dsz, self.dsy_c, self.syy_c, self.j, dx, dz, nx, nz)
+                div_sxyz_c[dim](self.dsx, self.dsz, self.dsy_c, self.syy_c, dx, dz, nx, nz)
 
             stf_dsxz[self.nsrc, 1](self.dsx, self.dsz, self.stf_x, self.stf_z, self.src_id, isrc, it, nt)
             add_vxz[dim](self.vx, self.vz, self.ux, self.uz, self.dsx, self.dsz, self.rho, self.bound, dt)
@@ -62,7 +62,7 @@ def run_forward(self):
             add_sxz[dim](self.sxx, self.szz, self.sxz, self.dvxdx, self.dvxdz, self.dvzdx, self.dvzdz, self.lam, self.mu, dt)
 
             if spin:
-                add_vy[dim](self.vy_c, self.uy_c, self.dsy_c, self.rho, self.bound, dt, npt)
+                add_vy[dim](self.vy_c, self.uy_c, self.dsy_c, self.j, self.bound, dt, npt)
                 div_vy[dim](self.dvydx_c, self.dvydz_c, self.vy_c, dx, dz, nx, nz)
                 add_sy_c[dim](self.syx_c, self.syy_c, self.syz_c, self.vy_c, self.dvydx_c, self.dvydz_c, self.dvxdz, self.dvzdx, self.dvzdz, self.nu, self.j, self.mu_c, self.nu_c, dt)
 

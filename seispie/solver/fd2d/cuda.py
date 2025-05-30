@@ -18,46 +18,60 @@ def idxij(nz):
     return k, i, j
 
 
+@cuda.jit(device=True)
+def diff_x(v, i, k, dx, nx, nz):
+    if i >= 2 and i < nx - 2:
+        return 9 * (v[k] - v[k-nz]) / (8 * dx) - (v[k+nz] - v[k-2*nz]) / (24 * dx)
+    else:
+        return 0
+
+
+@cuda.jit(device=True)
+def diff_x1(v, i, k, dx, nx, nz):
+    if i >= 1 and i < nx - 2:
+        return 9 * (v[k+nz] - v[k]) / (8 * dx) - (v[k+2*nz] - v[k-nz]) / (24 * dx)
+    else:
+        return 0
+
+
+@cuda.jit(device=True)
+def diff_z(v, j, k, dz, nx, nz):
+    if j >= 2 and j < nz - 2:
+        return 9 * (v[k] - v[k-1]) / (8 * dz) - (v[k+1] - v[k-2]) / (24 * dz)
+    else:
+        return 0
+
+
+@cuda.jit(device=True)
+def diff_z1(v, j, k, dz, nx, nz):
+    if j >= 1 and j < nz - 2:
+        return 9 * (v[k+1] - v[k]) / (8 * dz) - (v[k+2] - v[k-1]) / (24 * dz)
+    else:
+        return 0
+
+
 @cuda.jit
 def div_sy(dsy, sxy, szy, dx, dz, nx, nz):
     k, i, j = idxij(nz)
     if k < dsy.size:
-        if i >= 2 and i < nx - 2:
-            dsy[k] = 9 * (sxy[k] - sxy[k-nz]) / (8 * dx) - (sxy[k+nz] - sxy[k-2*nz]) / (24 * dx)
-        else:
-            dsy[k] = 0
-
-        if j >= 2 and j < nz - 2:
-            dsy[k] += 9 * (szy[k] - szy[k-1]) / (8 * dz) - (szy[k+1] - szy[k-2]) / (24 * dz)
-
-
-@cuda.jit
-def div_sy_c(dsx, dsz, dsy_c, syy_c, jk, dx, dz, nx, nz):
-    k, i, j = idxij(nz)
-    if k < dsx.size:
-        if i >= 2 and i < nx - 2:
-            dsz[k] -= 9 * (syy_c[k] - syy_c[k-nz]) / (8 * dx) - (syy_c[k+nz] - syy_c[k-2*nz]) / (24 * dx)
-
-        if j >= 2 and j < nz - 2:
-            dsx[k] += 9 * (syy_c[k] - syy_c[k-1]) / (8 * dz) - (syy_c[k+1] - syy_c[k-2]) / (24 * dz)
-
-        dsy_c[k] -= 2 * syy_c[k] / jk[k]
+        dsy[k] = diff_x(sxy, i, k, dx, nx, nz) + diff_z(szy, j, k, dz, nx, nz)
 
 
 @cuda.jit
 def div_sxz(dsx, dsz, sxx, szz, sxz, dx, dz, nx, nz):
     k, i, j = idxij(nz)
     if k < dsx.size:
-        if i >= 2 and i < nx - 2:
-            dsx[k] = 9 * (sxx[k] - sxx[k-nz]) / (8 * dx) - (sxx[k+nz] - sxx[k-2*nz]) / (24 * dx)
-            dsz[k] = 9 * (sxz[k] - sxz[k-nz]) / (8 * dx) - (sxz[k+nz] - sxz[k-2*nz]) / (24 * dx)
-        else:
-            dsx[k] = 0
-            dsz[k] = 0
+        dsx[k] = diff_x(sxx, i, k, dx, nx, nz) + diff_z(sxz, j, k, dz, nx, nz)
+        dsz[k] = diff_x(sxz, i, k, dx, nx, nz) + diff_z(szz, j, k, dz, nx, nz)
 
-        if j >= 2 and j < nz - 2:
-            dsx[k] += 9 * (sxz[k] - sxz[k-1]) / (8 * dz) - (sxz[k+1] - sxz[k-2]) / (24 * dz)
-            dsz[k] += 9 * (szz[k] - szz[k-1]) / (8 * dz) - (szz[k+1] - szz[k-2]) / (24 * dz)
+
+@cuda.jit
+def div_sxyz_c(dsx, dsz, dsy_c, syy_c, dx, dz, nx, nz):
+    k, i, j = idxij(nz)
+    if k < dsx.size:
+        dsx[k] += diff_z(syy_c, j, k, dz, nx, nz)
+        dsz[k] -= diff_x(syy_c, i, k, dx, nx, nz)
+        dsy_c[k] -= 2 * syy_c[k]
 
 
 @cuda.jit
@@ -98,31 +112,17 @@ def add_vxz(vx, vz, ux, uz, dsx, dsz, rho, bound, dt):
 def div_vy(dvydx, dvydz, vy, dx, dz, nx, nz):
     k, i, j = idxij(nz)
     if k < nx * nz:
-        if i >= 1 and i < nx - 2:
-            dvydx[k] = 9 * (vy[k+nz] - vy[k]) / (8 * dx) - (vy[k+2*nz] - vy[k-nz]) / (24 * dx)
-        else:
-            dvydx[k] = 0
-        if j >= 1 and j < nz - 2:
-            dvydz[k] = 9 * (vy[k+1] - vy[k]) / (8 * dz) - (vy[k+2] - vy[k-1]) / (24 * dz)
-        else:
-            dvydz[k] = 0
+        dvydx[k] = diff_x1(vy, i, k, dx, nx, nz)
+        dvydz[k] = diff_z1(vy, j, k, dz, nx, nz)
 
 @cuda.jit
 def div_vxz(dvxdx, dvxdz, dvzdx, dvzdz, vx, vz, dx, dz, nx, nz):
     k, i, j = idxij(nz)
     if k < dvxdx.size:
-        if i >= 1 and i < nx - 2:
-            dvxdx[k] = 9 * (vx[k+nz] - vx[k]) / (8 * dx) - (vx[k+2*nz] - vx[k-nz]) / (24 * dx)
-            dvzdx[k] = 9 * (vz[k+nz] - vz[k]) / (8 * dx) - (vz[k+2*nz] - vz[k-nz]) / (24 * dx)
-        else:
-            dvxdx[k] = 0
-            dvzdx[k] = 0
-        if j >= 1 and j < nz - 2:
-            dvxdz[k] = 9 * (vx[k+1] - vx[k]) / (8 * dz) - (vx[k+2] - vx[k-1]) / (24 * dz)
-            dvzdz[k] = 9 * (vz[k+1] - vz[k]) / (8 * dz) - (vz[k+2] - vz[k-1]) / (24 * dz)
-        else:
-            dvxdz[k] = 0
-            dvzdz[k] = 0
+        dvxdx[k] = diff_x1(vx, i, k, dx, nx, nz)
+        dvxdz[k] = diff_z1(vx, j, k, dz, nx, nz)
+        dvzdx[k] = diff_x1(vz, i, k, dx, nx, nz)
+        dvzdz[k] = diff_z1(vz, j, k, dz, nx, nz)
 
 @cuda.jit
 def add_sy(sxy, szy, dvydx, dvydz, mu, dt, npt):
