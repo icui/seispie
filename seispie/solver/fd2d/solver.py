@@ -64,7 +64,7 @@ def run_forward(self):
             if spin:
                 add_vy[dim](self.vy_c, self.uy_c, self.dsy_c, self.j, self.bound, dt, npt)
                 div_vy[dim](self.dvydx_c, self.dvydz_c, self.vy_c, dx, dz, nx, nz)
-                add_sy_c[dim](self.syx_c, self.syy_c, self.syz_c, self.vy_c, self.dvydx_c, self.dvydz_c, self.dvxdz, self.dvzdx, self.dvzdz, self.nu, self.j, self.mu_c, self.nu_c, dt)
+                add_sy_c[dim](self.syx_c, self.syy_c, self.syz_c, self.vy_c, self.dvydx_c, self.dvydz_c, self.dvxdz, self.dvzdx, self.dvzdz, self.nu, self.mu_c, self.nu_c, dt)
 
             save_obs[self.nrec, 1](self.obs_x, self.ux, self.rec_id, it, nt, nx, nz)
             save_obs[self.nrec, 1](self.obs_z, self.uz, self.rec_id, it, nt, nx, nz)

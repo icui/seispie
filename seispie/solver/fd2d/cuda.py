@@ -132,12 +132,12 @@ def add_sy(sxy, szy, dvydx, dvydz, mu, dt, npt):
         szy[k] += dt * mu[k] * dvydz[k]
 
 @cuda.jit
-def add_sy_c(syx_c, syy_c, syz_c, vy_c, dvydx_c, dvydz_c, dvxdz, dvzdx, dvzdz, nu, jk, mu_c, nu_c, dt):
+def add_sy_c(syx_c, syy_c, syz_c, vy_c, dvydx_c, dvydz_c, dvxdz, dvzdx, dvzdz, nu, mu_c, nu_c, dt):
     k = idx()
     if k < syx_c.size:
         syy_c[k] += 2 * dt * nu[k] * (vy_c[k] - 0.5 * (dvzdx[k] - dvxdz[k]))
-        syx_c[k] += dt / jk[k] * (mu_c[k] + nu_c[k]) * dvydx_c[k]
-        syz_c[k] += dt / jk[k] * (mu_c[k] + nu_c[k]) * dvydz_c[k]
+        syx_c[k] += dt * (mu_c[k] + nu_c[k]) * dvydx_c[k]
+        syz_c[k] += dt * (mu_c[k] + nu_c[k]) * dvydz_c[k]
 
 @cuda.jit
 def add_sxz(sxx, szz, sxz, dvxdx, dvxdz, dvzdx, dvzdz, lam, mu, dt):
