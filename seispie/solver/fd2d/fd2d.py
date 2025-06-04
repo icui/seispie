@@ -200,6 +200,8 @@ class fd2d(base):
         zeros = np.zeros(npt, dtype='float32')
 
         # change parameterization
+        self.rho = cuda.to_device(model['rho'], stream=stream)
+
         if self.spin:
             self.lam = cuda.to_device(model['lambda'], stream=stream)
             self.mu = cuda.to_device(model['mu'], stream=stream)
@@ -213,7 +215,6 @@ class fd2d(base):
             self.mu = cuda.to_device(model['vs'], stream=stream)
             vps2lm[self.dim](self.lam, self.mu, self.rho)
 
-        self.rho = cuda.to_device(model['rho'], stream=stream)
         self.bound = cuda.to_device(zeros, stream=stream) # absorbing boundary
 
         abs_left = 1 if self.config['abs_left'] == 'yes' else 0

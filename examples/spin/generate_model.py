@@ -1,7 +1,7 @@
 import numpy as np
 
-dx = 5.0
-dz = 5.0
+dx = 2.5
+dz = 2.5
 
 nx = int(4000 / dx) + 1
 nz = int(4000 / dz) + 1
@@ -37,7 +37,7 @@ for i in range(nx):
 npt = np.array([n], dtype='int32')
 
 for m in model:
-    with open(f'./model/proc000000_{m}.bin', 'w') as f:
+    with open(f'./examples/spin/model/proc000000_{m}.bin', 'w') as f:
         f.seek(0)
         npt.tofile(f)
         f.seek(4)
