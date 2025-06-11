@@ -1,7 +1,7 @@
 import numpy as np
 
-dx = 2.5
-dz = 2.5
+dx = 1.0
+dz = 1.0
 
 nx = int(4000 / dx) + 1
 nz = int(4000 / dz) + 1
