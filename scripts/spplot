@@ -143,6 +143,10 @@ if __name__ == '__main__':
     x_coords_file, z_coords_file = get_coord_files(sys.argv[1])
     x = read_fortran(x_coords_file)
     z = read_fortran(z_coords_file)
+
+    # downsample for speed
+    x = x[::20]
+    z = z[::20]
     
     files = get_data_files(sys.argv[1])
 
@@ -155,6 +159,9 @@ if __name__ == '__main__':
         # read database file
         v = read_fortran(database_file)
 
+        # downsample for speed
+        v = v[::20]
+
         # check mesh dimensions
         assert x.shape == z.shape == v.shape, 'Inconsistent mesh dimensions.'
 
@@ -163,7 +170,7 @@ if __name__ == '__main__':
         V, X, Z = mesh2grid(v, x, z)
 
         # display figure
-        pylab.figure(figsize=(8, 6))
+        fig = pylab.figure(figsize=(8, 6))
         amax = abs(V).max()
         pylab.pcolor(X, Z, V, vmin=amax*-1, vmax=amax)
         locs = np.arange(X.min(), X.max() + 1, (X.max() - X.min()) / 5)
@@ -178,8 +185,8 @@ if __name__ == '__main__':
         pylab.title(comp)
         pylab.gca().invert_yaxis()
         pylab.set_cmap('seismic')
-
         pylab.savefig(database_file.replace('.bin', '.png'), dpi=300)
+        pylab.close(fig)
 
     from obspy import Stream, Trace
     import matplotlib.pyplot as plt

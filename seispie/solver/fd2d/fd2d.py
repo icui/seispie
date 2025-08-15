@@ -115,7 +115,7 @@ class fd2d(base):
         self.dt = float(self.config['dt'])
         self.sh = 1 if self.config['sh'] == 'yes' else 0
         self.psv = 1 if self.config['psv'] == 'yes' else 0
-        self.spin = 1 if self.config['spin'] == 'yes' else 0
+        self.spin = 1 if self.config.get('spin') == 'yes' else 0
         self.sae = 0
         self.nsa = 0
 
