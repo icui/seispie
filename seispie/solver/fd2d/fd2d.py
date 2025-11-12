@@ -164,6 +164,10 @@ class fd2d(base):
         self.obs_y = cuda.to_device(obs, stream=stream)
         self.obs_z = cuda.to_device(obs, stream=stream)
 
+        if self.spin:
+            self.obs_yi = cuda.to_device(obs, stream=stream)
+            self.obs_yc = cuda.to_device(obs, stream=stream)
+
     def import_model(self, model_true):
         """ import model
         """
@@ -239,7 +243,7 @@ class fd2d(base):
             ]
 
             if self.spin:
-                dats += ['vy_c', 'uy_c', 'syx_c', 'syy_c', 'syz_c', 'dsy_c', 'dvydx_c', 'dvydz_c']
+                dats += ['vy_c', 'uy_c', 'syx_c', 'syy_c', 'syz_c', 'dsy_c', 'dvydx_c', 'dvydz_c', 'duzdx', 'duxdz']
 
         for dat in dats:
             setattr(self, dat, cuda.to_device(zeros, stream=stream))

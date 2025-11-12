@@ -157,6 +157,16 @@ def save_obs(obs, u, rec_id, it, nt, nx, nz):
 
 
 @cuda.jit
+def save_obs_c(obs_i, obs_c, u, duzdx, duxdz, rec_id, it, nt, nx, nz):
+    ib = cuda.blockIdx.x
+    kr = ib * nt + it
+    km = rec_id[ib]
+
+    obs_c[kr] = -(duzdx[km] - duxdz[km])
+    obs_i[kr] = u[km] - 0.5 * obs_c[kr]
+
+
+@cuda.jit
 def interaction_muy(k_mu, dvydx, dvydx_fw, dvydz, dvydz_fw, ndt, nx, nz):
     k = idx()
     if k < nx * nz:
@@ -232,6 +242,8 @@ def run_forward(self):
 
             if spin:
                 save_obs[self.nrec, 1](self.obs_y, self.uy_c, self.rec_id, it, nt, nx, nz)
+                div_vxz[dim](self.dvxdx, self.duxdz, self.duzdx, self.dvzdz, self.ux, self.uz, dx, dz, nx, nz)
+                save_obs_c[self.nrec, 1](self.obs_yi, self.obs_yc, self.uy_c, self.duzdx, self.duxdz, self.rec_id, it, nt, nx, nz)
 
         if isa >= 0:
             if sh:
@@ -283,6 +295,14 @@ def run_forward(self):
                 out = np.zeros(nt * nrec, dtype='float32')
                 self.obs_y.copy_to_host(out, stream=stream)
                 np.save('%s/ry_%06d.npy' % (tracedir, i), out.reshape([nrec, nt]))
+
+                out = np.zeros(nt * nrec, dtype='float32')
+                self.obs_yi.copy_to_host(out, stream=stream)
+                np.save('%s/iry_%06d.npy' % (tracedir, i), out.reshape([nrec, nt]))
+
+                out = np.zeros(nt * nrec, dtype='float32')
+                self.obs_yc.copy_to_host(out, stream=stream)
+                np.save('%s/cry_%06d.npy' % (tracedir, i), out.reshape([nrec, nt]))
 
         stream.synchronize()
 
